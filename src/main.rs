@@ -3,14 +3,14 @@ extern crate rayon;
 extern crate exoquant;
 extern crate imageproc;
 
-use std::fs;
+
 use image::Rgba;
 use exoquant::*;
-use std::process;
-use std::path::Path;
 use rayon::prelude::*;
 use imageproc::drawing::draw_text_mut;
 use rusttype::{ FontCollection, Scale };
+use std::{error::Error, fmt, fs, process, path::Path};
+
 
 #[derive(Debug)]
 struct Color {
@@ -39,16 +39,45 @@ impl Paths {
     }
 }
 
+
+#[derive(Debug)]
+enum AppError {
+    NotFound,
+    MismatchSize,
+    CouldntSaveFile,
+    NotEnoughArguments,
+}
+
+impl Error for AppError {}
+
+impl fmt::Display for AppError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Oh no, something bad went down")
+    }
+}
+
+impl From<image::ImageError> for AppError {
+    fn from(_error: image::ImageError) -> Self {
+        AppError::NotFound
+    }
+}
+
+impl From<std::io::Error> for AppError {
+    fn from(_error: std::io::Error) -> Self {
+        AppError::CouldntSaveFile
+    }
+}
+
 fn main() {
 
-    let mut paths;
-    match Paths::new(std::env::args()) {
-        Ok(p) => paths = p,
+    let paths = match Paths::new(std::env::args()) {
+        Ok(p) => p,
         Err(_) => {
             print_help();
+            // close app.
             process::exit(1);
         }
-    }
+    };
     
     let months: Vec<_> = fs::read_dir(&paths.first_path).unwrap().map(|res| res.unwrap().path()).collect();
     let images: Vec<_> = fs::read_dir(&paths.second_path).unwrap().map(|res| res.unwrap().path()).collect();    
@@ -56,11 +85,11 @@ fn main() {
     let _files: Vec<_> = images.par_iter().map(|image| {
         let color = get_color_palette(image.as_path());
         let _ms: Vec<_> = months.par_iter().map(|month| {
-            // file_stem() file_name
-            let p = format!("{}/{}-{}.png", &paths.export_path, month.file_stem().unwrap().to_str().unwrap(), image.file_stem().unwrap().to_str().unwrap());
-            let res = Path::new(&p);
-            join_photos_vertically(image.as_path(), month.as_path(), res).unwrap();
-            write_text(res, &color)
+            // file_stem(), file_name() with extension 
+            let path = format!("{}/{}-{}.png", &paths.export_path, month.file_stem().unwrap().to_str().unwrap(), image.file_stem().unwrap().to_str().unwrap());
+            let image_path = Path::new(&path);
+            join_photos_vertically(image.as_path(), month.as_path(), image_path).unwrap();
+            write_text(image_path, &color)
         }).filter_map(|x| Some(x)).collect();
     }).filter_map(|x| Some(x)).collect();
 }
@@ -92,38 +121,6 @@ fn get_color_palette(path: &Path) -> Color {
     Color { primary, secondary }
 }
 
-
-use std::{error::Error, fmt};
-
-#[derive(Debug)]
-enum AppError {
-    NotFound,
-    MismatchSize,
-    CouldntSaveFile,
-    NotEnoughArguments,
-}
-
-impl Error for AppError {}
-
-impl fmt::Display for AppError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Oh no, something bad went down")
-    }
-}
-
-impl From<image::ImageError> for AppError {
-    fn from(_error: image::ImageError) -> Self {
-        AppError::NotFound
-    }
-}
-
-impl From<std::io::Error> for AppError {
-    fn from(_error: std::io::Error) -> Self {
-        AppError::CouldntSaveFile
-    }
-}
-
-
 fn join_photos_vertically(first_path: &Path, second_path: &Path, result_path: &Path) -> Result<(), AppError> {
     let first_img = image::open(first_path)?;
     let second_img = image::open(second_path)?;
@@ -132,7 +129,6 @@ fn join_photos_vertically(first_path: &Path, second_path: &Path, result_path: &P
     let second_img = second_img.to_rgba();
     let first_size = first_img.dimensions();
     let second_size = second_img.dimensions();
-    
 
     // check if the width is not the same, kill it!
     if first_size.0 != second_size.0 {
