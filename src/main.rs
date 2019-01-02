@@ -3,7 +3,6 @@ extern crate rayon;
 extern crate exoquant;
 extern crate imageproc;
 
-
 use image::Rgba;
 use exoquant::*;
 use rayon::prelude::*;
@@ -38,7 +37,6 @@ impl Paths {
         Ok(Paths { first_path, second_path, export_path })
     }
 }
-
 
 #[derive(Debug)]
 enum AppError {
