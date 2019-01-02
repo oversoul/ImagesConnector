@@ -6,7 +6,7 @@ ps: this was built as part of a calendar builder, so for now only adds static 20
 
 ## Usage
 ```
-./program path1 path2 export_path");
+./program path1 path2 export_path
 ```
 * path1:         first folder path.
 * path2:         second folder path.
