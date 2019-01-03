@@ -2,13 +2,15 @@ extern crate exoquant;
 extern crate image;
 extern crate imageproc;
 extern crate rayon;
+extern crate structopt;
 
 use exoquant::{convert_to_indexed, ditherer, optimizer, Color as ExoColor};
 use image::Rgba;
 use imageproc::drawing::draw_text_mut;
 use rayon::prelude::*;
 use rusttype::{FontCollection, Scale};
-use std::{error::Error, fmt, fs, path::Path, process};
+use std::{error::Error, fmt, fs, path::Path};
+use structopt::StructOpt;
 
 const ALPHA_CHANNEL: u8 = 255;
 
@@ -18,29 +20,16 @@ struct Color {
     secondary: [u8; 4],
 }
 
-#[derive(Debug)]
-struct Paths {
-    first_path: String,
-    second_path: String,
-    export_path: String,
-}
+#[derive(StructOpt, Debug)]
+struct Cli {
+    #[structopt(parse(from_os_str))]
+    first_path: std::path::PathBuf,
 
-impl Paths {
-    fn new(mut args: std::env::Args) -> Result<Paths, AppError> {
-        if args.len() < 4 {
-            return Err(AppError::NotEnoughArguments);
-        }
+    #[structopt(parse(from_os_str))]
+    second_path: std::path::PathBuf,
 
-        args.next();
-        let first_path = args.next().unwrap();
-        let second_path = args.next().unwrap();
-        let export_path = args.next().unwrap();
-        Ok(Paths {
-            first_path,
-            second_path,
-            export_path,
-        })
-    }
+    #[structopt(parse(from_os_str))]
+    export_path: std::path::PathBuf,
 }
 
 #[derive(Debug)]
@@ -48,7 +37,6 @@ enum AppError {
     NotFound,
     MismatchSize,
     CouldntSaveFile,
-    NotEnoughArguments,
 }
 
 impl Error for AppError {}
@@ -72,14 +60,7 @@ impl From<std::io::Error> for AppError {
 }
 
 fn main() {
-    let paths = match Paths::new(std::env::args()) {
-        Ok(p) => p,
-        Err(_) => {
-            print_help();
-            // close app.
-            process::exit(1);
-        }
-    };
+    let paths = Cli::from_args();
 
     let months: Vec<_> = fs::read_dir(&paths.first_path)
         .unwrap()
@@ -96,7 +77,7 @@ fn main() {
             // file_stem(), file_name() with extension
             let path = format!(
                 "{}/{}-{}.png",
-                &paths.export_path,
+                paths.export_path.to_str().unwrap(),
                 month.file_stem().unwrap().to_str().unwrap(),
                 image.file_stem().unwrap().to_str().unwrap()
             );
@@ -105,19 +86,6 @@ fn main() {
             write_text(image_path, &color);
         });
     });
-}
-
-fn print_help() {
-    println!("HELP:");
-    println!("");
-    println!("Simple programs, takes two folders, and combine the images in them, and put the results in the exported folder.");
-    println!("");
-    println!("USAGE:");
-    println!("./program path1 path2 export_path");
-    println!("================================================");
-    println!("path1:         first folder path");
-    println!("path2:         second folder path");
-    println!("export_path:   folder where to save exported images.");
 }
 
 fn get_color_palette(path: &Path) -> Color {
