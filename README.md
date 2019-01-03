@@ -17,4 +17,4 @@ ps: this was built as part of a calendar builder, so for now only adds static 20
 
 MIT
 
-Font: (Josefin sans)[https://www.fontsquirrel.com/license/josefin-sans]
+Font: [Josefin sans](https://www.fontsquirrel.com/license/josefin-sans)
