@@ -10,6 +10,8 @@ use rayon::prelude::*;
 use rusttype::{FontCollection, Scale};
 use std::{error::Error, fmt, fs, path::Path, process};
 
+const ALPHA_CHANNEL: u8 = 255;
+
 #[derive(Debug)]
 struct Color {
     primary: [u8; 4],
@@ -127,6 +129,7 @@ fn get_color_palette(path: &Path) -> Color {
         .chunks(4)
         .map(|c| ExoColor::new(c[0], c[1], c[2], c[3]))
         .collect();
+
     let (palette, _) = convert_to_indexed(
         &pixels,
         width as usize,
@@ -135,9 +138,15 @@ fn get_color_palette(path: &Path) -> Color {
         &ditherer::FloydSteinberg::new(),
     );
     // making sure always alpha is 255.
-    let primary = [palette[0].r, palette[0].g, palette[0].b, 255u8];
+    let primary = [palette[0].r, palette[0].g, palette[0].b, ALPHA_CHANNEL];
+
     // random index, convert_to_index returns a Vec of len = 256
-    let secondary = [palette[200].r, palette[200].g, palette[200].b, 255u8];
+    let secondary = [
+        palette[200].r,
+        palette[200].g,
+        palette[200].b,
+        ALPHA_CHANNEL,
+    ];
     Color { primary, secondary }
 }
 
